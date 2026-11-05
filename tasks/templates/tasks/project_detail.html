@@ -1,0 +1,391 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ project.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .upload-zone {
+    border: 2px dashed var(--glass-brd);
+    border-radius: var(--r-md);
+    padding: 1.25rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    background: var(--field);
+    transition: border-color .25s var(--ease), background .25s var(--ease);
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .attach-item {
+    display: flex; align-items: center; gap: .65rem;
+    padding: .45rem .75rem;
+    border-radius: var(--r-sm);
+    background: var(--field);
+    border: 1px solid var(--field-brd);
+    margin-top: .45rem;
+  }
+  .attach-name { flex:1; font-weight:600; font-size:.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .attach-size { color:var(--ink-3); font-size:.74rem; font-weight:600; flex-shrink:0; }
+  .attach-del { flex-shrink:0; width:22px; height:22px; border-radius:50%; border:none; background:transparent;
+    color:var(--ink-3); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    transition:color .2s, background .2s; }
+  .attach-del:hover { color:#f0455f; background:rgba(240,69,95,.1); }
+  .text-overdue { color:#f0455f; }
+  .sortable-ghost { opacity:.35; }
+  .attach-badge { display:inline-flex; align-items:center; gap:.3rem;
+    font-size:.72rem; font-weight:700; color:var(--ink-3); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-3 anim">
+    <div>
+        <a href="{% url 'tasks:project_list' %}" class="faint d-inline-flex align-items-center gap-2 mb-2" style="text-decoration:none;font-weight:600;font-size:0.88rem;">
+            <svg class="ic ic-sm"><use href="#i-back"></use></svg>Проекты
+        </a>
+        <h1 style="font-size:2.3rem;font-weight:800;">{{ project.title }}</h1>
+        <p class="muted mb-0" style="font-weight:500;">{{ project.description|default:"Нет описания" }}</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Sidebar: metrics + filters -->
+    <div class="col-lg-3 anim" style="animation-delay:.08s;">
+        <div class="glass p-4 mb-4">
+            <h6 class="faint mb-3" style="font-weight:800;letter-spacing:0.12em;text-transform:uppercase;font-size:0.72rem;">Обзор</h6>
+            <div class="d-flex justify-content-between align-items-center py-2 hairline">
+                <span class="muted" style="font-weight:600;">Всего задач</span>
+                <span style="font-weight:800;font-size:1.4rem;">{{ tasks|length }}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center py-2 hairline">
+                <span class="muted d-inline-flex align-items-center gap-2" style="font-weight:600;"><span class="prio mid" style="padding:0;border:none;background:none;"><span class="dot"></span></span>В работе</span>
+                <span style="font-weight:800;font-size:1.4rem;">{{ in_progress_count|default:"0" }}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center py-2">
+                <span class="muted d-inline-flex align-items-center gap-2" style="font-weight:600;"><span class="prio low" style="padding:0;border:none;background:none;"><span class="dot"></span></span>Завершено</span>
+                <span style="font-weight:800;font-size:1.4rem;">{{ completed_count|default:"0" }}</span>
+            </div>
+        </div>
+
+        <div class="glass p-4">
+            <h6 class="faint mb-3" style="font-weight:800;letter-spacing:0.12em;text-transform:uppercase;font-size:0.72rem;">Фильтры</h6>
+            <select id="priorityFilter" class="form-select w-100 mb-3">
+                <option value="">Все приоритеты</option>
+                {% for p in priorities %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+            </select>
+            <div class="form-check mb-3">
+                <input type="checkbox" id="overdueFilter" class="form-check-input">
+                <label class="form-check-label muted" for="overdueFilter" style="font-weight:600;">Только просроченные</label>
+            </div>
+            <button id="filterBtn" type="button" class="btn-acc w-100 mb-2">Применить фильтр</button>
+            <button id="resetFilterBtn" type="button" class="btn-ghost w-100 mb-4">Сбросить</button>
+
+            <h6 class="faint mb-3" style="font-weight:800;letter-spacing:0.12em;text-transform:uppercase;font-size:0.72rem;">Данные</h6>
+            <button id="exportBtn" type="button" class="btn-ghost w-100 mb-2"><svg class="ic ic-sm"><use href="#i-down"></use></svg>Экспорт JSON</button>
+            <button id="importBtn" type="button" class="btn-ghost w-100"><svg class="ic ic-sm"><use href="#i-up"></use></svg>Импорт JSON</button>
+            <input type="file" id="importFile" style="display:none" accept=".json">
+        </div>
+    </div>
+
+    <!-- Kanban -->
+    <div class="col-lg-9 anim" style="animation-delay:.15s;">
+        <div class="row">
+            {% for col in columns %}
+            <div class="col-md-4 mb-4">
+                <div class="glass p-3" style="min-height:520px;">
+                    <div class="d-flex justify-content-between align-items-center px-2 py-2 mb-2">
+                        <span class="d-inline-flex align-items-center gap-2" style="font-weight:800;font-size:1.02rem;">{{ col.status.name }} <span class="count-badge col-count" data-status-id="{{ col.status.id }}">{{ col.tasks|length }}</span></span>
+                        <button type="button" class="icon-btn icon-btn-acc add-task-btn" style="width:32px;height:32px;" data-status="{{ col.status.id }}" title="Добавить задачу"><svg class="ic ic-sm"><use href="#i-plus"></use></svg></button>
+                    </div>
+                    <div class="task-list" data-status-id="{{ col.status.id }}" style="min-height:420px;padding:0.25rem;">
+                        {% include 'tasks/partials/task_cards.html' with tasks=col.tasks %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="taskModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content p-2">
+            <div class="modal-header border-0 pt-3 px-3">
+                <h5 class="modal-title" id="modalTitle">Задача</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-3">
+                {% csrf_token %}
+                <input type="hidden" id="task_id">
+                <div class="mb-3"><label class="form-label">Название</label><input type="text" id="task_title" class="form-control"></div>
+                <div class="mb-3"><label class="form-label">Описание</label><textarea id="task_description" class="form-control" rows="2"></textarea></div>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Дедлайн</label><input type="date" id="task_deadline" class="form-control"></div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Приоритет</label><select id="task_priority" class="form-select">{% for p in priorities %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+                </div>
+                <div class="mb-3"><label class="form-label">Статус</label><select id="task_status" class="form-select">{% for s in statuses %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div>
+                <div class="mb-1">
+                  <label class="form-label">Вложения</label>
+                  <div class="upload-zone" id="uploadZone">
+                    <input type="file" id="uploadInput" multiple style="display:none">
+                    <svg class="ic ic-sm mb-1" style="color:var(--ink-3)"><use href="#i-clip"></use></svg>
+                    <p class="faint mb-0" style="font-size:.82rem;font-weight:600;">Перетащите файлы или <span style="color:var(--accent);cursor:pointer;" onclick="document.getElementById('uploadInput').click()">выберите</span></p>
+                  </div>
+                  <div id="attachmentList"></div>
+                </div>
+                <div id="modalError" style="color:#f0455f;font-weight:600;font-size:.85rem;margin-top:.75rem;display:none;"></div>
+            </div>
+            <div class="modal-footer border-0 pb-3 px-3">
+                <button type="button" class="btn-ghost" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn-acc" id="saveTaskBtn">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'vendor/sortable/Sortable.min.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = new bootstrap.Modal(document.getElementById('taskModal'));
+    const projectId = {{ project.pk }};
+    const csrfToken = '{{ csrf_token }}';
+    const defaultPriority = '{{ priorities.first.id }}';
+    const $ = (id) => document.getElementById(id);
+    let pendingFiles = [];  // файлы, ожидающие загрузки после сохранения задачи
+
+    // URL-шаблоны (0 заменяется на id)
+    const URLS = {
+        get:        "{% url 'tasks:ajax_get_task' 0 %}",
+        update:     "{% url 'tasks:ajax_update_task' 0 %}",
+        del:        "{% url 'tasks:ajax_delete_task' 0 %}",
+        status:     "{% url 'tasks:ajax_update_status' 0 %}",
+        attach:     "{% url 'tasks:ajax_upload_attachment' 0 %}",
+        attachDel:  "{% url 'tasks:ajax_delete_attachment' 0 %}",
+        create:     "{% url 'tasks:ajax_create_task' %}",
+        filter:     "{% url 'tasks:filter_tasks' project.pk %}",
+        exportJson: "{% url 'tasks:export_tasks' project.pk %}",
+        importJson: "{% url 'tasks:import_tasks' project.pk %}",
+    };
+    const url = (tpl, id) => tpl.replace('/0/', `/${id}/`);
+    const jsonHeaders = { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' };
+
+    const escapeHtml = (str) => String(str).replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    function showError(msg) {
+        const box = $('modalError');
+        box.textContent = msg || '';
+        box.style.display = msg ? 'block' : 'none';
+    }
+
+    // ── Вложения ─────────────────────────────────────────────────────────────
+    function fmtSize(bytes) {
+        if (bytes < 1024) return bytes + ' Б';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' КБ';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' МБ';
+    }
+
+    let savedAttachments = [];
+    function renderAttachList() {
+        let html = '';
+        savedAttachments.forEach(a => {
+            html += `<div class="attach-item" data-aid="${a.id}">
+              <svg class="ic ic-sm" style="color:var(--accent);flex-shrink:0"><use href="#i-clip"></use></svg>
+              <a class="attach-name" href="${escapeHtml(a.url)}" target="_blank" style="color:var(--ink);text-decoration:none;">${escapeHtml(a.name)}</a>
+              <span class="attach-size">${fmtSize(a.size)}</span>
+              <button type="button" class="attach-del" data-saved="${a.id}" title="Удалить">✕</button>
+            </div>`;
+        });
+        pendingFiles.forEach((f, i) => {
+            html += `<div class="attach-item">
+              <svg class="ic ic-sm" style="color:var(--ink-3);flex-shrink:0"><use href="#i-clip"></use></svg>
+              <span class="attach-name" style="color:var(--ink-2);">${escapeHtml(f.name)}</span>
+              <span class="attach-size">${fmtSize(f.size)}</span>
+              <button type="button" class="attach-del" data-pending="${i}" title="Убрать">✕</button>
+            </div>`;
+        });
+        $('attachmentList').innerHTML = html;
+    }
+
+    $('attachmentList').addEventListener('click', (e) => {
+        const btn = e.target.closest('.attach-del');
+        if (!btn) return;
+        if (btn.dataset.pending !== undefined) {
+            pendingFiles.splice(Number(btn.dataset.pending), 1);
+            renderAttachList();
+        } else {
+            const id = Number(btn.dataset.saved);
+            fetch(url(URLS.attachDel, id), { method: 'DELETE', headers: { 'X-CSRFToken': csrfToken } })
+                .then(r => { if (r.ok) { savedAttachments = savedAttachments.filter(a => a.id !== id); renderAttachList(); } });
+        }
+    });
+
+    function addFiles(files) {
+        Array.from(files).forEach(f => pendingFiles.push(f));
+        renderAttachList();
+    }
+
+    async function uploadPending(taskId) {
+        const errors = [];
+        for (const f of pendingFiles) {
+            const fd = new FormData();
+            fd.append('file', f);
+            const r = await fetch(url(URLS.attach, taskId), { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+            if (!r.ok) {
+                const d = await r.json().catch(() => ({}));
+                errors.push(`${f.name}: ${d.message || 'ошибка загрузки'}`);
+            }
+        }
+        return errors;
+    }
+
+    // drag & drop файлов
+    const zone = $('uploadZone');
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); addFiles(e.dataTransfer.files); });
+    zone.addEventListener('click', e => { if (e.target.tagName !== 'SPAN') $('uploadInput').click(); });
+    $('uploadInput').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
+
+    function resetModal() {
+        pendingFiles = [];
+        savedAttachments = [];
+        renderAttachList();
+        showError('');
+    }
+
+    // ── Делегирование: кнопки на карточках (работают и после фильтрации) ────
+    document.addEventListener('click', (e) => {
+        const add = e.target.closest('.add-task-btn');
+        if (add) {
+            resetModal();
+            $('task_id').value = '';
+            $('task_title').value = '';
+            $('task_description').value = '';
+            $('task_deadline').value = '';
+            $('task_priority').value = defaultPriority;
+            $('task_status').value = add.dataset.status;
+            $('modalTitle').textContent = 'Новая задача';
+            modal.show();
+            return;
+        }
+        const edit = e.target.closest('.edit-task');
+        if (edit) {
+            resetModal();
+            fetch(url(URLS.get, edit.dataset.taskId))
+                .then(r => r.json())
+                .then(data => {
+                    $('task_id').value = data.id;
+                    $('task_title').value = data.title;
+                    $('task_description').value = data.description;
+                    $('task_deadline').value = data.deadline;
+                    $('task_priority').value = data.priority_id;
+                    $('task_status').value = data.status_id;
+                    $('modalTitle').textContent = 'Редактировать задачу';
+                    savedAttachments = data.attachments || [];
+                    renderAttachList();
+                    modal.show();
+                });
+            return;
+        }
+        const del = e.target.closest('.delete-task');
+        if (del && confirm('Удалить эту задачу?')) {
+            fetch(url(URLS.del, del.dataset.taskId), { method: 'DELETE', headers: { 'X-CSRFToken': csrfToken } })
+                .then(r => { if (r.ok) location.reload(); });
+        }
+    });
+
+    // ── Сохранить задачу ──────────────────────────────────────────────────────
+    $('saveTaskBtn').addEventListener('click', async () => {
+        const title = $('task_title').value.trim();
+        if (!title) { showError('Укажите название задачи'); return; }
+        const taskId = $('task_id').value;
+        const btn = $('saveTaskBtn');
+        btn.disabled = true;
+        try {
+            const r = await fetch(taskId ? url(URLS.update, taskId) : URLS.create, {
+                method: 'POST',
+                headers: jsonHeaders,
+                body: JSON.stringify({
+                    project_id: projectId,
+                    title,
+                    description: $('task_description').value,
+                    deadline: $('task_deadline').value || null,
+                    priority_id: parseInt($('task_priority').value),
+                    status_id: parseInt($('task_status').value),
+                }),
+            });
+            const data = await r.json();
+            if (!r.ok || data.status !== 'ok') { showError(data.message || 'Ошибка сохранения'); return; }
+            const errors = pendingFiles.length ? await uploadPending(taskId || data.task_id) : [];
+            if (errors.length) { showError(errors.join('; ')); pendingFiles = []; return; }
+            modal.hide();
+            location.reload();
+        } catch (err) {
+            showError('Не удалось связаться с сервером');
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // ── Drag & drop канбан ────────────────────────────────────────────────────
+    document.querySelectorAll('.task-list').forEach(list => {
+        new Sortable(list, {
+            group: 'tasks', animation: 200, ghostClass: 'sortable-ghost',
+            onEnd: (evt) => {
+                if (evt.from === evt.to) return;
+                fetch(url(URLS.status, evt.item.dataset.taskId), {
+                    method: 'POST',
+                    headers: jsonHeaders,
+                    body: JSON.stringify({ status_id: parseInt(evt.to.dataset.statusId) }),
+                }).then(() => location.reload());
+            },
+        });
+    });
+
+    // ── Фильтры (без перезагрузки: подменяем карточки в колонках) ────────────
+    async function applyFilter() {
+        const params = new URLSearchParams({
+            priority: $('priorityFilter').value,
+            overdue: $('overdueFilter').checked,
+        });
+        const r = await fetch(`${URLS.filter}?${params}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        Object.entries(data).forEach(([statusId, col]) => {
+            const list = document.querySelector(`.task-list[data-status-id="${statusId}"]`);
+            if (list) list.innerHTML = col.html;
+            const badge = document.querySelector(`.col-count[data-status-id="${statusId}"]`);
+            if (badge) badge.textContent = col.count;
+        });
+    }
+    $('filterBtn').addEventListener('click', applyFilter);
+    $('resetFilterBtn').addEventListener('click', () => {
+        $('priorityFilter').value = '';
+        $('overdueFilter').checked = false;
+        applyFilter();
+    });
+
+    // ── Экспорт / импорт ──────────────────────────────────────────────────────
+    $('exportBtn').addEventListener('click', () => { location.href = URLS.exportJson; });
+    $('importBtn').addEventListener('click', () => $('importFile').click());
+    $('importFile').addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async ev => {
+            const r = await fetch(URLS.importJson, { method: 'POST', headers: jsonHeaders, body: ev.target.result });
+            if (!r.ok) { alert(await r.text()); return; }
+            const d = await r.json();
+            alert(`Импортировано задач: ${d.created}`);
+            location.reload();
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+    });
+});
+</script>
+{% endblock %}

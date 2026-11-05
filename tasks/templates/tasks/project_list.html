@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block title %}Проекты{% endblock %}
+
+{% block extra_css %}
+<style>
+  .stat-tile { padding: 1.4rem 1.5rem; display:flex; flex-direction:column; gap:.35rem; }
+  .stat-ic { width:42px; height:42px; border-radius:14px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:.4rem; }
+  .stat-val { font-size:2.1rem; font-weight:800; line-height:1; letter-spacing:-.02em; }
+  .stat-lbl { color:var(--ink-2); font-weight:700; font-size:.82rem; }
+  .stat-sub { color:var(--ink-3); font-weight:600; font-size:.76rem; }
+
+  .ring { --p:0; position:relative; flex:0 0 auto; width:148px; height:148px; border-radius:50%;
+    background: conic-gradient(var(--accent) calc(var(--p)*1%), var(--accent-soft) 0);
+    display:flex; align-items:center; justify-content:center; transition:background .9s var(--ease); }
+  .ring::before { content:""; position:absolute; width:108px; height:108px; border-radius:50%; background:var(--glass-strong); }
+  .ring-inner { position:relative; text-align:center; }
+
+  .chart { display:flex; align-items:flex-end; gap:.7rem; height:170px; padding-top:.5rem; }
+  .chart .col-bar { flex:1; display:flex; flex-direction:column; align-items:center; gap:.55rem; height:100%; justify-content:flex-end; }
+  .bar { width:100%; max-width:34px; border-radius:10px 10px 6px 6px;
+    background:linear-gradient(180deg, var(--accent), var(--accent-600));
+    box-shadow:0 8px 18px -8px rgba(47,107,255,.7); transition:height .9s var(--ease); }
+  .bar-day { color:var(--ink-3); font-weight:700; font-size:.74rem; }
+  .bar-val { color:var(--ink-2); font-weight:800; font-size:.78rem; }
+
+  .pp-row { display:flex; align-items:center; gap:.85rem; padding:.55rem 0; }
+  .pp-name { font-weight:700; font-size:.9rem; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pp-track { flex:1.4; height:9px; border-radius:999px; background:var(--accent-soft); overflow:hidden; }
+  .pp-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,var(--accent),var(--accent-600)); transition:width .9s var(--ease); }
+  .pp-pct { font-weight:800; font-size:.82rem; width:42px; text-align:right; color:var(--ink-2); }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="text-center py-5 anim">
+    <div class="pill mb-4 floaty d-inline-flex"><span class="dot"></span>Рабочее пространство</div>
+    <h1 class="display mb-3">Все проекты <span class="sub">в одном месте</span></h1>
+    <p class="muted mx-auto" style="max-width: 520px; font-size: 1.08rem; font-weight: 500;">Спокойное и собранное пространство, чтобы планировать, отслеживать и доводить задачи до конца.</p>
+    <div class="d-flex justify-content-center mt-4">
+        <a href="{% url 'tasks:project_create' %}" class="btn-acc">
+            <svg class="ic ic-sm"><use href="#i-plus"></use></svg>Новый проект
+        </a>
+    </div>
+</section>
+
+<!-- Аналитика -->
+<section class="mb-5">
+  <div class="d-flex align-items-center justify-content-between mb-4 anim" style="animation-delay:.06s;">
+    <h2 style="font-size:1.5rem;font-weight:800;">Аналитика</h2>
+    <span class="pill d-inline-flex"><span class="dot"></span>Обновлено сегодня</span>
+  </div>
+  <div class="row g-4">
+    <div class="col-6 col-lg-3 anim" style="animation-delay:.10s;">
+      <div class="project-card stat-tile h-100">
+        <span class="stat-ic" style="background:rgba(37,192,139,.15);color:#25c08b;"><svg class="ic"><use href="#i-check"></use></svg></span>
+        <span class="stat-val">{{ analytics.done }}</span>
+        <span class="stat-lbl">Выполнено задач</span>
+        <span class="stat-sub">из {{ analytics.total }} всего</span>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3 anim" style="animation-delay:.14s;">
+      <div class="project-card stat-tile h-100">
+        <span class="stat-ic" style="background:var(--accent-soft);color:var(--accent);"><svg class="ic"><use href="#i-trend"></use></svg></span>
+        <span class="stat-val">{{ analytics.rate }}%</span>
+        <span class="stat-lbl">Процент выполнения</span>
+        <span class="stat-sub">по всем проектам</span>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3 anim" style="animation-delay:.18s;">
+      <div class="project-card stat-tile h-100">
+        <span class="stat-ic" style="background:rgba(245,165,36,.15);color:#f5a524;"><svg class="ic"><use href="#i-clock"></use></svg></span>
+        <span class="stat-val">{{ analytics.open }}</span>
+        <span class="stat-lbl">В работе</span>
+        <span class="stat-sub">осталось закрыть</span>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3 anim" style="animation-delay:.22s;">
+      <div class="project-card stat-tile h-100">
+        <span class="stat-ic" style="background:var(--accent-soft);color:var(--accent);"><svg class="ic"><use href="#i-folder"></use></svg></span>
+        <span class="stat-val">{{ analytics.projects_count }}</span>
+        <span class="stat-lbl">Активных проектов</span>
+        <span class="stat-sub">{{ analytics.completed_projects }} завершено</span>
+      </div>
+    </div>
+  </div>
+  <div class="row g-4 mt-0">
+    <div class="col-lg-7 anim" style="animation-delay:.26s;">
+      <div class="project-card p-4 h-100">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <h6 class="fw-800 mb-0" style="font-size:1.05rem;">Выполнено за неделю</h6>
+          <span class="count-badge">{{ week_total }} задач</span>
+        </div>
+        <p class="faint mb-3" style="font-weight:600;font-size:.82rem;">Закрытые задачи по дням</p>
+        <div class="chart">
+          {% for day in week_data %}
+          <div class="col-bar">
+            <span class="bar-val">{{ day.v }}</span>
+            <div class="bar" style="height:0" data-h="{{ day.bar_h }}"></div>
+            <span class="bar-day">{{ day.d }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5 anim" style="animation-delay:.30s;">
+      <div class="project-card p-4 h-100 d-flex flex-column">
+        <h6 class="fw-800 mb-1" style="font-size:1.05rem;">Общий прогресс</h6>
+        <p class="faint mb-3" style="font-weight:600;font-size:.82rem;">Доля выполненных задач</p>
+        <div class="d-flex align-items-center gap-4 mb-2 flex-grow-1">
+          <div class="ring" style="--p:{{ analytics.rate }}">
+            <div class="ring-inner">
+              <div class="stat-val" style="font-size:1.9rem;">{{ analytics.rate }}%</div>
+              <div class="faint" style="font-weight:700;font-size:.72rem;">выполнено</div>
+            </div>
+          </div>
+          <div style="flex:1;">
+            {% for p in projects_progress %}
+            <div class="pp-row">
+              <span class="pp-name">{{ p.title }}</span>
+              <span class="pp-track"><span class="pp-fill" style="width:0" data-w="{{ p.pct }}"></span></span>
+              <span class="pp-pct">{{ p.pct }}%</span>
+            </div>
+            {% empty %}
+            <p class="faint" style="font-weight:600;font-size:.85rem;">Нет задач с прогрессом</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-flex align-items-center justify-content-between mt-2 mb-4 anim" style="animation-delay:.08s;">
+    <h2 style="font-size:1.5rem;font-weight:800;">Все проекты</h2>
+    <span class="muted" style="font-weight:600;font-size:0.92rem;">Всего: {{ projects|length }}</span>
+</div>
+
+<div class="row g-4">
+    {% for project in projects %}
+    <div class="col-md-6 col-lg-4 anim" style="animation-delay: {{ forloop.counter|add:'1' }}0ms;">
+        <div class="project-card glass-hover p-4 h-100 d-flex flex-column" onclick="window.location.href='{% url 'tasks:project_detail' project.pk %}'">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <span class="count-badge">{{ project.task_count }} задач</span>
+                <div class="dropdown">
+                    <button class="icon-btn" data-bs-toggle="dropdown" onclick="event.stopPropagation()"><svg class="ic"><use href="#i-more"></use></svg></button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{% url 'tasks:project_detail' project.pk %}"><svg class="ic ic-sm"><use href="#i-eye"></use></svg>Открыть</a></li>
+                        <li><a class="dropdown-item" href="{% url 'tasks:project_update' project.pk %}"><svg class="ic ic-sm"><use href="#i-edit"></use></svg>Редактировать</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="{% url 'tasks:project_delete' project.pk %}"><svg class="ic ic-sm"><use href="#i-trash"></use></svg>Удалить</a></li>
+                    </ul>
+                </div>
+            </div>
+            <h5 class="fw-800 mb-2" style="font-size:1.4rem;">{{ project.title }}</h5>
+            <p class="muted mb-4" style="font-size:0.95rem;font-weight:500;flex:1;">{{ project.description|truncatechars:90|default:"Пока нет описания" }}</p>
+            <div class="hairline mb-3"></div>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="faint d-inline-flex align-items-center gap-2" style="font-weight:600;font-size:0.85rem;"><svg class="ic ic-sm"><use href="#i-calendar"></use></svg>{{ project.created_at|date:"d.m.Y" }}</span>
+                <span class="nav-chip" style="padding:0.3rem 0.5rem;color:var(--accent);font-weight:700;">Открыть →</span>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 anim">
+        <div class="glass p-5 text-center">
+            <h4 class="fw-800 mb-2">Пока нет проектов</h4>
+            <p class="muted mb-4" style="font-weight:500;">Создайте первый проект, чтобы начать.</p>
+            <a href="{% url 'tasks:project_create' %}" class="btn-acc d-inline-flex"><svg class="ic ic-sm"><use href="#i-plus"></use></svg>Новый проект</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.bar[data-h]').forEach(b => { b.style.height = b.dataset.h + '%'; });
+    document.querySelectorAll('.pp-fill[data-w]').forEach(f => { f.style.width = f.dataset.w + '%'; });
+  });
+</script>
+{% endblock %}

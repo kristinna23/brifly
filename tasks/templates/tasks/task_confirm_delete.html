@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Удалить задачу{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-5">
+    <div class="col-md-5">
+        <div class="card-modern p-5 text-center anim">
+            <div class="icon-btn floaty mx-auto mb-3" style="width:64px;height:64px;background:rgba(240,69,95,0.12);color:#f0455f;">
+                <svg class="ic ic-lg"><use href="#i-alert"></use></svg>
+            </div>
+            <h3 style="font-size:1.6rem;font-weight:800;" class="mb-2">Удалить эту задачу?</h3>
+            <p class="muted mb-4" style="font-weight:500;">Вы удаляете задачу <strong>«{{ object.title }}»</strong>. Это действие необратимо.</p>
+            <form method="post">
+                {% csrf_token %}
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="{% url 'tasks:project_detail' object.project.pk %}" class="btn btn-outline-secondary">Отмена</a>
+                    <button type="submit" class="btn btn-danger"><svg class="ic ic-sm"><use href="#i-trash"></use></svg>Удалить задачу</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Вход в систему{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-4">
+    <div class="col-md-7 col-lg-5">
+        <div class="text-center mb-4 anim">
+            <div class="pill mb-3 d-inline-flex"><span class="dot"></span>Вход</div>
+            <h1 style="font-size:2.2rem;font-weight:800;">С возвращением</h1>
+            <p class="muted" style="font-weight:500;">Войдите в свой аккаунт, чтобы продолжить.</p>
+        </div>
+
+        <div class="project-card p-5 anim" style="animation-delay:.08s;">
+            {% if form.errors %}
+            <div class="auth-alert mb-4">
+                <svg class="ic ic-sm" style="flex-shrink:0;"><use href="#i-alert"></use></svg>
+                <div>Неверное имя пользователя или пароль.</div>
+            </div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label class="form-label" for="id_username">Имя пользователя</label>
+                    <input type="text" name="username" id="id_username" class="form-control" placeholder="Ваш логин" autofocus required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label" for="id_password">Пароль</label>
+                    <input type="password" name="password" id="id_password" class="form-control" placeholder="Ваш пароль" required>
+                </div>
+                <input type="hidden" name="next" value="{{ next }}">
+                <button type="submit" class="btn-primary-gradient w-100" style="padding:0.85rem;">Войти</button>
+            </form>
+
+            <div class="hairline my-4"></div>
+            <p class="text-center muted mb-0" style="font-weight:500;font-size:0.92rem;">
+                Нет аккаунта?
+                <a href="{% url 'tasks:register' %}" style="color:var(--accent);font-weight:700;text-decoration:none;">Зарегистрироваться</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .auth-alert {
+        display: flex; align-items: flex-start; gap: 0.7rem;
+        padding: 0.9rem 1.1rem; border-radius: var(--r-sm);
+        background: rgba(240,69,95,0.10); border: 1px solid rgba(240,69,95,0.25);
+        color: #f0455f; font-weight: 600; font-size: 0.88rem;
+    }
+</style>
+{% endblock %}

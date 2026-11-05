@@ -1,0 +1,39 @@
+<table class="table table-hover mt-3">
+    <thead>
+        <tr>
+            <th>Название</th>
+            <th>Приоритет</th>
+            <th>Статус</th>
+            <th>Дедлайн</th>
+            <th>Просрочена</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for task in tasks %}
+        <tr class="
+            {% if task.priority.name == 'Высокий' %}table-danger
+            {% elif task.priority.name == 'Средний' %}table-warning
+            {% elif task.is_overdue %}table-secondary
+            {% endif %}
+        ">
+            <td>{{ task.title }}</td>
+            <td><span class="badge bg-secondary">{{ task.priority.name }}</span></td>
+            <td><span class="badge 
+                {% if task.status.name == 'Новая' %}bg-primary
+                {% elif task.status.name == 'В работе' %}bg-warning
+                {% else %}bg-success{% endif %}">
+                {{ task.status.name }}
+            </span></td>
+            <td>{{ task.deadline|default:"—" }}</td>
+            <td>{% if task.is_overdue %}✅ Да{% else %}❌ Нет{% endif %}</td>
+            <td>
+                <a href="{% url 'tasks:task_update' task.pk %}" class="btn btn-sm btn-outline-secondary">Изменить</a>
+                <a href="{% url 'tasks:task_delete' task.pk %}" class="btn btn-sm btn-outline-danger">Удалить</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center">Задач пока нет. Создайте первую!</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
